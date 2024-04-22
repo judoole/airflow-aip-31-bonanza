@@ -92,8 +92,47 @@ This has now the added benefit that I can easily find all codereferences in most
 
 ### Caveats
 
-TODO
+There are some
 
+1. You cannot see/render, or use the xcom, until the previous task has run.
+2. All references to `.output` must be done in templated fields.
+3. You cannot use references to `.output` inside strings, even if they are in a templated field. For example this: `my_task(text=f"Print this '{other_task.output}'")` will work for execute, but it will not add a upstream dependency to `other_task`. A rewrite to `my_task(text=other_task.output")` will work.
+4. Some Operators will try to use the templated field inside the `__init__` method and fail. For example [GCSToGCSOperator tries to figure out if a wildcard is used](https://github.com/apache/airflow/blob/0d9d8fa9fa1368092083a581006bfc96ce57da17/airflow/providers/google/cloud/transfers/gcs_to_gcs.py#L275), and fails since the object will be an instance of `XComArg`. For these cases, you probably would like to rewrite the Operator.
+5. Some operators doesn't have an output. For these cases I recommend creating a wrapper Operator, and use the `self.output_` in `__init__` for added readability.
+   
 ## Gherkin style tests
 
-TODO
+Setting up tests for Airflow is not easy. The entire setup method etc requires deep insight into what is going on under hood in Airflow. It often times means creating a DagBag object, populating this with your DAG under test, and running unit tests on this. Many times you need some xcom as well, and especially if you start using Airflow as in this example. That is why it is very useful to have a test harness that is both quick and easy to add more tests. In this repository, the test harnessing is done in [conftest.py](https://github.com/judoole/airflow-aip-31-bonanza/blob/ef5ec9556adcebcfd1efeb1cd9d3ccc97b9a4bd2/tests/conftest.py) and used for example l[ike in test_example.py](https://github.com/judoole/airflow-aip-31-bonanza/blob/ef5ec9556adcebcfd1efeb1cd9d3ccc97b9a4bd2/tests/test_example.py):
+
+```python
+from example import DAG_ID
+from hamcrest import has_property, has_entry, equal_to
+from conftest import TurbineBDD
+from components.hello_world_task_group import HELLO_WORLD_TASK_GROUP_ID
+from components.hello_producer_operator import HELLO_PRODUCER_OPERATOR_TASK_ID
+
+def test_echo_hello_world_task(bdd: TurbineBDD):
+    bdd.given_dag(DAG_ID)
+    bdd.given_xcom(
+        task_id=f"{HELLO_WORLD_TASK_GROUP_ID}.{HELLO_PRODUCER_OPERATOR_TASK_ID}",
+        value="hei",
+    )
+    bdd.given_xcom(task_id="hello_world.say_world", value="verden")
+    bdd.given_task("echo_hello_world")
+    bdd.when_I_render_the_task_template_fields()
+    bdd.then_it_should_match(has_property("env", has_entry("HELLO", equal_to("hei"))))
+    bdd.then_it_should_match(has_property("env", has_entry("NAME", equal_to("verden"))))
+
+
+def test_print_two_numbers_task(bdd: TurbineBDD):
+    bdd.given_dag(DAG_ID)
+    bdd.given_xcom(
+        task_id="random_numbers",
+        key="number_2",
+        value=22,
+    )    
+    bdd.given_task("print_a_random_number")
+    bdd.when_I_render_the_task_template_fields()
+    bdd.and_I_execute_the_task()
+    bdd.then_it_should_match(equal_to("The random number is: '22'"))
+```
