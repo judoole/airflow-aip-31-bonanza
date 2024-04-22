@@ -9,6 +9,8 @@ help:
 	@echo "  venv          to create a virtual environment using venv"
 	@echo "  pip-install   to install the dependencies using pip"
 	@echo "  run           to run a local airflow (includes venv and pip-install)"
+	@echo "  stop          to stop all the airflow running processes"
+	@echo "  test          to run the tests, using some BDD helper functions"
 	@echo "  help          to show this message"
 	@echo "Python version: $(PYTHON_VERSION), Airflow version: $(AIRFLOW_VERSION)"	
 
