@@ -90,6 +90,35 @@ print_a_random_number(two_random_numbers.output_number_2)
 
 This has now the added benefit that I can easily find all codereferences in most used IDEs, like who is actually using the output of this Operator. And I also get codecompletion on the variable names.
 
+You can even use this on TaskGroups, by extending the TaskGroup class, as [in this HelloWorldTaskGroup](https://github.com/judoole/airflow-aip-31-bonanza/blob/2e601b666901c3e754581e90c889c56202c080b8/dags/components/hello_world_task_group.py):
+```python
+class HelloWorldTaskGroup(TaskGroup):
+    def __init__(
+        self, hello="hello", name="world", group_id=HELLO_WORLD_TASK_GROUP_ID, **kwargs
+    ):
+        super().__init__(group_id=group_id, **kwargs)
+        with self:
+            hello = HelloProducerOperator(hello=hello)
+            name = WorldProducerOperator(name=name)
+        self.output_hello = hello.output_hello
+        self.output_name = name.output_name
+```
+Now I can reference the `self.output_hello`, which is basically just a re-reference to `hello.output_hello` [in a DAG like so](https://github.com/judoole/airflow-aip-31-bonanza/blob/2e601b666901c3e754581e90c889c56202c080b8/dags/example.py#L47)
+
+```python
+    hello_world = HelloWorldTaskGroup(
+        hello="hola",
+    )
+
+    # This task will echo the output of the two tasks in the TaskGroup
+    # It will also add the two tasks as upstream dependencies
+    echo_hello_world = BashOperator(
+        task_id="echo_hello_world",
+        bash_command='echo "${HELLO} ${NAME}"',
+        env={"HELLO": hello_world.output_hello, "NAME": hello_world.output_name},
+    )
+```
+
 ### Caveats
 
 There are some
