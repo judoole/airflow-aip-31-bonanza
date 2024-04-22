@@ -66,7 +66,7 @@ check_load-->transform;
 
 Now, we can easily see that the output of load is used in transform. And this becomes very useful, the bigger your DAGs are.
 
-If one then tries to utilise less `<<` and `>>` and more `.output`, these representations are created for free. 
+If one then tries to utilise less `<<` and `>>` and more `.output`, these dependencies are created for free. 
 
 #### Find code references
 
